@@ -1,31 +1,23 @@
 import os
 import discord
 import logging
+from numpy import tile
 import pandas as pd
+import sys
+sys.path.append('/.../common/')
+sys.path.append('/.../')
+from utils import Utils
 # import do 
-from dotenv import load_dotenv
 
+import common.constants
+
+from dotenv import load_dotenv
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
-
+KEY = os.getenv('key')
 client = discord.Client()
 guild = discord.Guild
-CMD_GIVE_TITLE = os.getenv('CMD_GIVE_TITLE')
-TITLE_DUKE = os.getenv('TITLE_DUKE')
-TITLE_SCIENTIST = os.getenv('TITLE_SCIENTIST')
-TITLE_ARCHITECT = os.getenv('TITLE_ARCHITECT')
-
-def getFullTitle(title):
-    if title == TITLE_DUKE :
-        return 'Duke'
-    elif title == TITLE_ARCHITECT :
-        return 'Architect'
-    elif title == TITLE_SCIENTIST :
-        return 'Scientist'
-    else :
-        return ''
-
 
 @client.event
 async def on_ready():
@@ -36,18 +28,26 @@ async def on_ready():
 async def on_message(message):
     if message.author == client.user:
         return
-    if(message.content.startswith('_')) :
-        data = message.content.replace(CMD_GIVE_TITLE,"").split()
+    if(message.content.startswith(common.constants.CMD_GIVE_TITLE)) :
+        data = message.content.replace(common.constants.CMD_GIVE_TITLE,"").split()
         if len(data) == 3 :
             x = data[0]
             y = data[1]
-            tuoc = data[2]
+            title = data[2]
             # do.ban_tuoc(x,y,tuoc)
-            answer = discord.Embed(title="ADD TO QUEUE :" + getFullTitle(tuoc),
-                                   description="Please Wait. ...........",
-                                   colour=0x1a7794) 
-
+            answer = None
+            path = Utils.getPathByTitle(title)
+            result = Utils.addToFile(path,x,y,title)
+            if path != '' and result:                    
+                answer = discord.Embed(title="ADD TO QUEUE SUCCESS: " + Utils.getFullTitle(title),
+                                    description="Please Wait. ...........",
+                                    colour=0x1a7794) 
+            else:
+                 answer = discord.Embed(title="ERROR ",
+                                    description="Some thing wrong",
+                                    colour=0xde3f1f) 
             await message.channel.send(embed=answer)
+    return
     if message.content.startswith('_'):
         cmd = message.content.split()[0].replace("_","")
         if len(message.content.split()) > 1:
@@ -114,5 +114,4 @@ async def on_message(message):
             await message.author.send(file=discord.File(file_location, filename='data.csv')) # Sending the file
             os.remove(file_location) # Deleting the file
   
-
-client.run('OTc5NjUzNjUzMzMxODYxNTM0.GuAc7Y.DISvng1wRERRNBowAnhPpFesU0sKiv0huVrzk8')
+client.run(KEY)

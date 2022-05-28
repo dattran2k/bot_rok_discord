@@ -1,9 +1,6 @@
+from dis import dis
+from http import client
 import discord
-
-client = discord.Client()
-guild = discord.Guild
-
-def init() :
-    
-
-    
+import sys
+import discord_client as client
+sys.path.append('/.../')
