@@ -1,18 +1,72 @@
-from ppadb.client import Client as AdbClient
-# Default is "127.0.0.1" and 5037
-client = AdbClient(host="127.0.0.1", port=5037)
-print(client.version())
+from ppadb.client import Client as PPADBClient
+import time
+import subprocess
+from utils import resource_path
+from utils import build_command
+import common.constants
+import traceback
 
-# Default is "127.0.0.1" and 5037
-device = client.device("127.0.0.1:5615")
-# Default is "127.0.0.1" and 5037
+bridge = None
 
-def dump_logcat(connection):
-    while True:
-        data = connection.read(1024)
-        if not data:
-            break
-        print(data.decode('utf-8'))
 
-    connection.close()
-device.shell("logcat", handler=dump_logcat)
+class Adb:
+
+    def __init__(self, host='127.0.0.1', port=5037):
+        self.client = PPADBClient(host, port)
+
+    def connect_to_device(self, host='127.0.0.1', port=5555):
+        adb_path = resource_path(common.constants.CMD_GIVE_TITLE)
+        cmd = build_command(adb_path, 'connect', "{}:{}".format(host, port))
+        ret = subprocess.check_output(cmd, shell=True, stderr=subprocess.PIPE, encoding="utf-8", timeout=2)
+        return self.get_device(host, port)
+
+    def get_client_devices(self):
+        return self.client.devices()
+
+    def get_device(self, host='127.0.0.1', port=5555):
+        device = self.client.device('{}:{}'.format(host, port))
+        try:
+            if device is None:
+                self.connect_to_device(host, port)
+                device = self.client.device('{}:{}'.format(host, port))
+        except Exception as e:
+            traceback.print_exc()
+            return None
+        return device
+
+
+def enable_adb(host='127.0.0.1', port=5037):
+    adb = None
+    try:
+        adb = Adb(host, port)
+
+        version = adb.client.version()
+
+        if version != 41:
+            raise RuntimeError('Error: require adb version 41, but version is {}'.format(version))
+
+    except RuntimeError as err:
+
+        adb_path = resource_path(common.constants.ADB_EXE_PATH)
+
+        ret = subprocess.run(build_command(adb_path, '-P', str(port), 'kill-server', host), shell=True,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
+
+        ret = subprocess.run(build_command(adb_path, '-P', str(port), 'connect', host), shell=True,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
+
+        if ret.returncode != 0:
+            raise RuntimeError('Error: fail to start adb server. \n({})'.format(ret))
+
+    return adb
+
+
+def tap(self, x, y, sleep_time=0.1, long_press_duration=-1):
+    cmd = None
+    if long_press_duration > -1:
+        cmd = 'input swipe {} {} {} {} {}'.format(x, y, x, y, long_press_duration)
+        sleep_time = long_press_duration / 1000 + 0.2
+    else:
+        cmd = 'input tap {} {}'.format(x, y)
+    str = self.device.shell(cmd)
+    time.sleep(sleep_time)
